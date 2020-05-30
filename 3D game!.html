@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html> 
+    <head>
+        <title>Processing.JS inside Webpages: Template</title> 
+        <style>
+            body {
+                margin: 0;
+                overflow: hidden;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="mycanvas"></canvas> 
+    </body>
+    <script src="https://cdn.jsdelivr.net/processing.js/1.4.8/processing.min.js"></script> 
+ 
+    <script>
+        var sketchProc = function(processingInstance) {
+            with (processingInstance) {
+                frameRate(500);
+                size(innerWidth, innerHeight); 
+                var direction = 0; //0-360 degrees 
+                var ray_corrections = []; render_distance = 100; raynum = 50; ray_length = []; ray_hit = []; rayspeed = 3; ray_collisions = []; //x, y, x, y
+                var box_x = [-50, 50]; box_y = [50, 0]; box_w = [50, 50]; box_h = [50, 25]; timer = 0;
+                var walls = []; x = 0; y = 0;
+
+                ray = function(a, l) {
+                    line(innerWidth - 70, 70, (innerWidth - 70) + l * sin(a / 180 * PI), 70 + l * cos(a / 180 * PI));
+                }
+
+                box = function(x, y, w, h) {
+                    fill(0);
+                    rect(innerWidth - 70 + x, 70 + y, w, h);
+                }
+
+                for (var raystart = 0; raystart < raynum; raystart++) {
+                    ray_length[raystart] = 0;
+                    ray_corrections[raystart] = 1;
+                }
+
+                keyPressed = function() {
+                    if (key.toString() === "a") {
+                        if (direction < 360) {
+                            direction+=5;
+                        } else {
+                            direction = 0;
+                        }
+                    }
+                    if (key.toString() === "d") {
+                        if (direction > 0) {
+                            direction-=5;
+                        } else {
+                            direction = 360;
+                        }
+                    }
+
+                    if (key.toString() === "w") {
+                        y-=cos((direction - 135) / 180 * PI);
+                        x-=sin((direction - 135) / 180 * PI);
+                    }
+                    if (key.toString() === "s") {
+                        y+=cos((direction - 135) / 180 * PI);
+                        x+=sin((direction - 135) / 180 * PI);
+                    }
+                }
+
+                draw = function() {
+                    timer++;
+                    rectMode(CENTER);
+                    stroke(0);
+                    background(0, 255, 0);
+                    fill(0, 100, 255);
+                    rect(innerWidth/2, innerHeight/4, innerWidth + 5, innerHeight/2);
+
+                    for (var walldraw = 0; walldraw < raynum; walldraw++) {
+                        fill(walldraw*200/raynum);
+                        rect(walldraw/raynum*innerWidth, innerHeight/2, innerWidth/raynum, walls[raynum - walldraw]);
+                    }
+
+                    if (timer > render_distance/rayspeed) {
+                        for (var rayreset = 0; rayreset < raynum; rayreset++) {
+                            if (ray_hit[rayreset] === false) {
+                                walls[rayreset] = 0;
+                            }
+                            ray_length[rayreset] = 0;
+                            ray_hit[rayreset] = false;
+                        }
+                        timer = 0;
+                        ray_corrections[rayreset] = 1;
+                    }
+
+                    for (var raycast = 0; raycast < raynum; raycast++) {
+                        ray_collisions[raycast*2] = ray_length[raycast] * sin((direction + (90*(raycast/raynum))) / 180 * PI);
+                        ray_collisions[raycast*2 + 1] = ray_length[raycast] * cos((direction + (90*(raycast/raynum))) / 180 * PI);
+
+                        if (ray_hit[raycast] != true) {
+                            ray_length[raycast]+=rayspeed;
+                        }
+
+                        if (raycast < 1) {
+                            stroke(255, 0, 0);
+                        } else {
+                            stroke(0);
+                        }
+
+                        ray(direction + (90*(raycast/raynum)), ray_length[raycast]);
+                    }
+
+                    for (var mapdraw = 0; mapdraw < box_x.length; mapdraw++) {
+                        box(box_x[mapdraw] - x, box_y[mapdraw] - y, box_w[mapdraw], box_h[mapdraw]);
+
+                        for (var raycollisionscan = 0; raycollisionscan < raynum; raycollisionscan++) {
+                            if (ray_collisions[raycollisionscan*2] > box_x[mapdraw] - box_w[mapdraw]/2 - x && ray_collisions[raycollisionscan*2 + 1] > box_y[mapdraw] - box_h[mapdraw]/2 - y && ray_collisions[raycollisionscan*2] < box_x[mapdraw] + box_w[mapdraw]/2 - x && ray_collisions[raycollisionscan*2 + 1] < box_y[mapdraw] + box_h[mapdraw]/2 - y) {
+                                ray_hit[raycollisionscan] = true;
+                                walls[raycollisionscan] = innerHeight/ray_length[raycollisionscan]*5;
+                            }
+                            if (ray_hit[raycollisionscan] === true) {
+                                if (ray_length[raycollisionscan] * cos((direction + (90*(raycollisionscan/raynum))) / 180 * PI) > box_x[mapdraw] - box_w[mapdraw]/2 - x && ray_length[raycollisionscan] * sin((direction + (90*(raycollisionscan/raynum))) / 180 * PI) > box_y[mapdraw] - box_h[mapdraw]/2 - y && ray_length[raycollisionscan] * cos((direction + (90*(raycollisionscan/raynum))) / 180 * PI) < box_x[mapdraw] + box_w[mapdraw]/2 - x && ray_length[raycollisionscan] * sin((direction + (90*(raycollisionscan/raynum))) / 180 * PI) < box_y[mapdraw] + box_h[mapdraw]/2 - y) {
+                                    ray_length[raycollisionscan]-=rayspeed/(2^ray_corrections[raycollisionscan]);
+                                } else {
+                                    ray_length[raycollisionscan]+=rayspeed/(2^ray_corrections[raycollisionscan]);
+                                }
+                                ray_corrections[raycollisionscan]++;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var canvas = document.getElementById("mycanvas"); 
+        var processingInstance = new Processing(canvas, sketchProc); 
+    </script>
+
+</html>
